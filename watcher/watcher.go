@@ -33,8 +33,9 @@ func (w *Watcher) Run(ctx context.Context) {
 			SaveState(w.state)
 			return
 		case <-ticker.C:
-			curr := ReadARP()
-			events := Diff(w.state, curr)
+			ignored := DefaultGatewayIPs()
+			curr := ReadARP(ignored)
+			events := Diff(w.state, curr, ignored)
 			for _, e := range events {
 				e.Print()
 			}
@@ -42,4 +43,3 @@ func (w *Watcher) Run(ctx context.Context) {
 		}
 	}
 }
-

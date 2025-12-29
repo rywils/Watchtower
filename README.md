@@ -12,7 +12,6 @@ No scanning. No probing. No noise.
 * Detects MAC address changes
 * Persists a baseline across runs
 * Ignores broadcast, gateway, and junk entries
-* It only tells you what actually matters.
 
 ---
 

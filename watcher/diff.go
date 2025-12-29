@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -22,10 +23,16 @@ type Event struct {
 	Timestamp int64
 }
 
-func isIgnorable(ip, mac string) bool {
+func isIgnorable(ip, mac string, ignoredIPs map[string]struct{}) bool {
 	// broadcast MAC
 	if mac == "ff:ff:ff:ff:ff:ff" {
 		return true
+	}
+
+	if ignoredIPs != nil {
+		if _, ok := ignoredIPs[ip]; ok {
+			return true
+		}
 	}
 
 	// broadcast IP
@@ -46,13 +53,13 @@ func isIgnorable(ip, mac string) bool {
 	return false
 }
 
-func Diff(prev, curr *State) []Event {
+func Diff(prev, curr *State, ignoredIPs map[string]struct{}) []Event {
 	now := time.Now().Unix()
 	events := []Event{}
 
 	// new / changed
 	for ip, d := range curr.Devices {
-		if isIgnorable(ip, d.MAC) {
+		if isIgnorable(ip, d.MAC, ignoredIPs) {
 			continue
 		}
 
@@ -76,7 +83,7 @@ func Diff(prev, curr *State) []Event {
 
 	// gone
 	for ip, old := range prev.Devices {
-		if isIgnorable(ip, old.MAC) {
+		if isIgnorable(ip, old.MAC, ignoredIPs) {
 			continue
 		}
 
@@ -94,13 +101,26 @@ func Diff(prev, curr *State) []Event {
 }
 
 func (e Event) Print() {
+	ipHost := formatIPHostname(e.IP)
 	switch e.Type {
 	case EventNewDevice:
-		println("[+] New device", e.IP, e.NewMAC)
+		fmt.Printf("[+] %s has joined the network.\n", ipHost)
 	case EventGoneDevice:
-		println("[-] Device left", e.IP, e.OldMAC)
+		fmt.Printf("[-] %s has left the network.\n", ipHost)
 	case EventMACChange:
-		println("[!] MAC changed", e.IP, e.OldMAC, "→", e.NewMAC)
+		fmt.Printf("[!] %s MAC address has changed to %s (was %s).\n", ipHost, e.NewMAC, e.OldMAC)
 	}
 }
 
+func formatIPHostname(ip string) string {
+	hostname := hostnameForIP(ip)
+	return fmt.Sprintf("%s (%s)", ip, hostname)
+}
+
+func hostnameForIP(ip string) string {
+	names, err := net.LookupAddr(ip)
+	if err != nil || len(names) == 0 {
+		return "unknown"
+	}
+	return strings.TrimSuffix(names[0], ".")
+}

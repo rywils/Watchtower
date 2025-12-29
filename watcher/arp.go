@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func ReadARP() *State {
+func ReadARP(ignoredIPs map[string]struct{}) *State {
 	out, err := exec.Command("arp", "-an").Output()
 	if err != nil {
 		return NewState()
@@ -50,6 +50,12 @@ func ReadARP() *State {
 			continue
 		}
 
+		if ignoredIPs != nil {
+			if _, ok := ignoredIPs[ip]; ok {
+				continue
+			}
+		}
+
 		state.Devices[ip] = Device{
 			IP:       ip,
 			MAC:      mac,
@@ -59,4 +65,3 @@ func ReadARP() *State {
 
 	return state
 }
-
