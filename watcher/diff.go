@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -42,11 +43,6 @@ func isIgnorable(ip, mac string, ignoredIPs map[string]struct{}) bool {
 
 	parsed := net.ParseIP(ip)
 	if parsed == nil || !parsed.IsPrivate() {
-		return true
-	}
-
-	// IGNORE GATEWAY
-	if strings.HasSuffix(ip, ".1") {
 		return true
 	}
 
@@ -100,19 +96,31 @@ func Diff(prev, curr *State, ignoredIPs map[string]struct{}) []Event {
 	return events
 }
 
-func (e Event) Print() {
-	ipHost := formatIPHostname(e.IP)
-	switch e.Type {
-	case EventNewDevice:
-		fmt.Printf("[+] %s has joined the network.\n", ipHost)
-	case EventGoneDevice:
-		fmt.Printf("[-] %s has left the network.\n", ipHost)
-	case EventMACChange:
-		fmt.Printf("[!] %s MAC address has changed to %s (was %s).\n", ipHost, e.NewMAC, e.OldMAC)
+func (e Event) JSON() string {
+	b, err := json.Marshal(e)
+	if err != nil {
+		return "{}"
 	}
+	return string(b)
 }
 
-func formatIPHostname(ip string) string {
+func (e Event) Text(resolveDNS bool) string {
+	ipHost := formatIPHostname(e.IP, resolveDNS)
+	switch e.Type {
+	case EventNewDevice:
+		return fmt.Sprintf("[+] %s has joined the network.", ipHost)
+	case EventGoneDevice:
+		return fmt.Sprintf("[-] %s has left the network.", ipHost)
+	case EventMACChange:
+		return fmt.Sprintf("[!] %s MAC address has changed to %s (was %s).", ipHost, e.NewMAC, e.OldMAC)
+	}
+	return fmt.Sprintf("[?] Unknown event for %s", e.IP)
+}
+
+func formatIPHostname(ip string, resolveDNS bool) string {
+	if !resolveDNS {
+		return ip
+	}
 	hostname := hostnameForIP(ip)
 	return fmt.Sprintf("%s (%s)", ip, hostname)
 }

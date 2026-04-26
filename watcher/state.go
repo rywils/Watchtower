@@ -2,6 +2,8 @@ package watcher
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -38,22 +40,35 @@ func LoadState() (*State, error) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read state file %q: %w", path, err)
+	}
+
+	if len(data) == 0 {
 		return nil, nil
 	}
 
 	var s State
-	if json.Unmarshal(data, &s) != nil {
-		return nil, nil
+	if err := json.Unmarshal(data, &s); err != nil {
+		return nil, fmt.Errorf("parse state file %q: %w", path, err)
+	}
+
+	if s.Devices == nil {
+		s.Devices = map[string]Device{}
 	}
 	return &s, nil
 }
 
-func SaveState(s *State) {
+func SaveState(s *State) error {
 	path, err := statePath()
 	if err != nil {
-		return
+		return err
 	}
 	data, _ := json.MarshalIndent(s, "", "  ")
-	_ = os.WriteFile(path, data, 0600)
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		return fmt.Errorf("write state file %q: %w", path, err)
+	}
+	return nil
 }
-

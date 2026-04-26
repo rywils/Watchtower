@@ -14,6 +14,10 @@ func ReadARP(ignoredIPs map[string]struct{}) *State {
 		return NewState()
 	}
 
+	return ParseARP(out, ignoredIPs)
+}
+
+func ParseARP(out []byte, ignoredIPs map[string]struct{}) *State {
 	state := NewState()
 	now := time.Now().Unix()
 
@@ -44,7 +48,7 @@ func ReadARP(ignoredIPs map[string]struct{}) *State {
 			continue
 		}
 
-		// Ignore non-private IP space 
+		// Ignore non-private IP space
 		parsedIP := net.ParseIP(ip)
 		if parsedIP == nil || !parsedIP.IsPrivate() {
 			continue
